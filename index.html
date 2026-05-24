@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>实况攀岩 — KROKUR</title>
+    <style>
+        body {
+            margin: 0;
+            background: #EFE8DE;
+            color: #4A4A4A;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #wall_bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .rock-hold {
+            position: absolute;
+        }
+
+        .layer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        #menu_layer, #game_layer {
+            display: none;
+        }
+
+        h1 {
+            font-size: 60px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            letter-spacing: -2px;
+        }
+
+        .start-btn {
+            padding: 20px 80px;
+            border: 4px solid #4A4A4A;
+            background: none;
+            font-size: 32px;
+            font-weight: 800;
+            cursor: pointer;
+            border-radius: 60px;
+        }
+
+        .start-btn:hover {
+            background: #4A4A4A;
+            color: #EFE8DE;
+        }
+
+        .level-btn {
+            width: 120px;
+            height: 120px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            font-size: 40px;
+            font-weight: 800;
+            color: #4A4A4A;
+        }
+
+        #game_body {
+            margin: 0;
+            background: radial-gradient(circle, #2C3E50 0%, #1A252F 100%);
+            color: #F0F0F0;
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #score_board {
+            font-size: 22px;
+            font-weight: 800;
+            color: #333;
+            margin-bottom: 15px;
+            background: #FFFFFF;
+            padding: 6px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            font-family: monospace;
+            display: flex;
+            gap: 20px;
+        }
+
+        #game_stage {
+            display: flex;
+            gap: 20px;
+            background: #EEE7DE;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            position: relative;
+            border: 4px solid #D6C5B3;
+        }
+
+        .screen-box {
+            position: relative;
+            width: 440px;
+            height: 560px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #F7F5F0;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .screen-label {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(0,0,0,0.7);
+            color: #FFF;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            z-index: 5;
+        }
+
+        #webcam {
+            display: none;
+        }
+
+        #input_canvas {
+            transform: scaleX(-1);
+            width: 100%;
+            height: 100%;
+            opacity: 0.8;
+        }
+
+        #game_canvas {
+            width: 100%;
+            height: 100%;
+            background: #F2EFE9;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #2C3E50;
+            font-weight: 600;
+            background: rgba(255,255,255,0.8);
+            padding: 6px 20px;
+            border-radius: 20px;
+        }
+
+        #game_overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            backdrop-filter: blur(6px);
+        }
+
+        .menu-btn {
+            padding: 10px 25px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin: 5px;
+        }
+
+        #restart_btn {
+            background: #E74C3C;
+            color: white;
+        }
+
+        #quit_top_btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #C0392B;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 6;
+        }
+    </style>
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <div id="wall_bg"></div>
+
+    <!-- 开始界面 -->
+    <div id="start_layer" class="layer">
+        <h1>实况攀岩</h1>
+        <button class="start-btn" onclick="showMenu()">开始挑战</button>
+    </div>
+
+    <!-- 关卡选择 -->
+    <div id="menu_layer" class="layer">
+        <h1>选择关卡</h1>
+        <div style="display: flex; gap: 30px;">
+            <button class="level-btn" style="background:#B3C4E5" onclick="enterGame(1)">1</button>
+            <button class="level-btn" style="background:#F4B6CA" onclick="enterGame(2)">2</button>
+            <button class="level-btn" style="background:#F9E0B7" onclick="enterGame(3)">3</button>
+            <button class="level-btn" style="background:#B3C4E5" onclick="enterGame(4)">4</button>
+        </div>
+    </div>
+
+    <!-- 游戏界面 -->
+    <div id="game_layer">
+        <h1 style="color: #F7F5F0;">🧗 BANANA — SOFULLE Climbing</h1>
+        <div id="score_board">
+            <div>📏 HEIGHT: <span id="height_val">0.00</span> m</div>
+            <div style="color: #7F8C8D;">|</div>
+            <div style="color: #E67E22;">🏁 GOAL: 15.00 m</div>
+        </div>
+       
+        <div id="game_stage">
+            <button id="quit_top_btn" onclick="quitToStart()">退出游戏</button>
+            <div class="screen-box" style="width: 240px; height: 300px; position: absolute; bottom: 15px; left: -260px; border: 3px solid #34495E;">
+                <div class="screen-label">● VISION FEED</div>
+                <canvas id="input_canvas" width="240" height="300"></canvas>
+            </div>
+            <div class="screen-box" style="width: 480px; height: 600px;">
+                <div class="screen-label" style="color: #34495E; background: rgba(255,255,255,0.9);">● KLIFUR PHYSICS ENGINE</div>
+                <canvas id="game_canvas" width="480" height="600"></canvas>
+            </div>
+            <div id="game_overlay">
+                <h2 id="overlay_title" style="font-size: 36px; margin-bottom: 10px; text-shadow: 0 4px 10px rgba(0,0,0,0.2);"></h2>
+                <p id="overlay_desc" style="font-size: 18px; margin-bottom: 20px; color: #FFF; font-weight: bold;"></p>
+                <div style="display: flex;">
+                    <button class="menu-btn" id="restart_btn" onclick="resetGame()">重新开始</button>
+                    <button class="menu-btn" style="background: #7F8C8D; color: white;" onclick="quitToStart()">退出游戏</button>
+                </div>
+            </div>
+        </div>
+        <div id="status">LOADING SPRING-MASS ENGINE...</div>
+        <video id="webcam" autoplay playsinline></video>
+    </div>
+
+<script>
+    const wall = document.getElementById('wall_bg');
+    const colors = ['#7DA2E5', '#F299B7', '#F7D08D'];
+    const darkColors = ['#5A78B0', '#B06E84', '#B09363'];
+    let placedHolds = [];
+
+    function getRandomPolygon() {
+        return `${Math.random()*40},${Math.random()*40} ${60+Math.random()*40},${Math.random()*30} ${70+Math.random()*30},${60+Math.random()*40} ${Math.random()*40},${70+Math.random()*30}`;
+    }
+
+    function createHold() {
+        let x, y, overlap;
+        let attempts = 0;
+        do {
+            overlap = false;
+            x = Math.random() * 90 + 5;
+            y = Math.random() * 90 + 5;
+            for (let pos of placedHolds) {
+                if (Math.hypot(pos.x - x, pos.y - y) < 18) { overlap = true; break; }
+            }
+            attempts++;
+        } while (overlap && attempts < 100);
+
+        if (attempts < 100) {
+            placedHolds.push({x, y});
+            const idx = Math.floor(Math.random() * colors.length);
+            const div = document.createElement('div');
+            div.className = 'rock-hold';
+            div.style.left = x + '%';
+            div.style.top = y + '%';
+            div.style.transform = `rotate(${Math.random()*360}deg)`;
+            div.innerHTML = `
+                <svg width="100" height="100">
+                    <polygon points="${getRandomPolygon()}" fill="${colors[idx]}" />
+                    <circle cx="50" cy="50" r="4" fill="${darkColors[idx]}" />
+                </svg>`;
+            wall.appendChild(div);
+        }
+    }
+
+    // 关卡配置
+    const LEVELS = {
+        1: { gravity: 0.1, magnetRadius: 90, density: 15 },
+        2: { gravity: 0.2, magnetRadius: 70, density: 25 },
+        3: { gravity: 0.35, magnetRadius: 50, density: 40 },
+        4: { gravity: 0.5, magnetRadius: 30, density: 60 }
+    };
+
+    function generateLevel(level) {
+        const config = LEVELS[level];
+        placedHolds = [];
+        wall.innerHTML = '';
+        for(let i=0; i < config.density; i++) {
+            createHold();
+        }
+        return config;
+    }
+
+    // 初始生成背景
+    generateLevel(1);
+
+    function showMenu() {
+        document.getElementById('start_layer').style.display = 'none';
+        document.getElementById('menu_layer').style.display = 'flex';
+    }
+
+    let currentLevel = 1;
+    function enterGame(level) {
+        currentLevel = level;
+        const cfg = LEVELS[level];
+
+        // 隐藏菜单 + 显示游戏
+        document.getElementById('menu_layer').style.display = 'none';
+        document.getElementById('game_layer').style.display = 'flex';
+        document.body.id = 'game_body';
+        wall.style.display = 'none';
+
+        puppet.gravity = cfg.gravity;
+        puppet.magnetRadius = cfg.magnetRadius;
+        resetGame();
+    }
+
+    // 退出到开始界面
+    function quitToStart() {
+        document.getElementById('game_layer').style.display = 'none';
+        document.getElementById('start_layer').style.display = 'flex';
+        document.body.id = '';
+        wall.style.display = 'block';
+        gameState = "QUIT";
+    }
+
+    // ====================== 攀岩游戏本体 ======================
+    const video = document.getElementById("webcam");
+    const inputCanvas = document.getElementById("input_canvas");
+    const inputCtx = inputCanvas.getContext("2d");
+    const gameCanvas = document.getElementById("game_canvas");
+    const gameCtx = gameCanvas.getContext("2d");
+    const statusDiv = document.getElementById("status");
+    const gameOverlay = document.getElementById("game_overlay");
+    const overlayTitle = document.getElementById("overlay_title");
+    const overlayDesc = document.getElementById("overlay_desc");
+    const heightVal = document.getElementById("height_val");
+
+    let gameState = "NOT_READY";
+    let currentHeightMeters = 0.00;      
+    let worldScrollY = 0;      
+    let targetScrollY = 0;
+    const START_Y_REF = 380;
+
+    const HOLD_COLORS = ["#E74C3C", "#9B59B6", "#1ABC9C", "#F1C40F", "#E67E22", "#2ECC71"];
+    let startStatus = { leftFoot: false, rightFoot: false, leftHand: false, rightHand: false };
+    let holds = [];
+
+    let puppet = {
+        bodyCenter: { x: 240, y: 440, vx: 0, vy: 0, mass: 1.0 },
+        leftHand:   { x: 150, y: 380, attachedId: 2 },
+        rightHand:  { x: 330, y: 380, attachedId: 3 },
+        leftFoot:   { x: 160, y: 500, attachedId: 0 },
+        rightFoot:  { x: 320, y: 500, attachedId: 1 },
+        springK: 0.12,
+        damping: 0.84,
+        gravity: 0.38,
+        restLengthHand: 85,
+        restLengthFoot: 70,
+        maxReachHand: 115,
+        maxReachFoot: 95,
+        magnetRadius: 65
+    };
+
+    function initHoldsRoute() {
+        startStatus = { leftFoot: false, rightFoot: false, leftHand: false, rightHand: false };
+        worldScrollY = 0; targetScrollY = 0; currentHeightMeters = 0.0; heightVal.innerText = "0.00";
+        
+        holds = [
+            { id: 0, x: 170, y: 500, r: 16, color: "#E67E22", type: "leftFoot", shape: "polygon" },
+            { id: 1, x: 310, y: 500, r: 16, color: "#E67E22", type: "rightFoot", shape: "polygon" },
+            { id: 2, x: 160, y: 380, r: 14, color: "#9B59B6", type: "leftHand", shape: "circle" },
+            { id: 3, x: 320, y: 380, r: 14, color: "#9B59B6", type: "rightHand", shape: "circle" }
+        ];
+
+        let lastY = 380;
+        for(let i=0; i<120; i++) {
+            lastY -= (60 + Math.random() * 18);
+            holds.push({
+                id: 4 + i,
+                x: 140 + Math.random() * 200,
+                y: lastY,
+                r: 14,
+                color: HOLD_COLORS[i % HOLD_COLORS.length],
+                shape: ["circle", "triangle", "polygon"][i % 3]
+            });
+        }
+        holds.push({ id: 9999, x: 240, y: -220, r: 25, color: "#D35400", shape: "polygon", isTopGoal: true });
+    }
+
+    let hoverTimers = { leftHand: 0, rightHand: 0, leftFoot: 0, rightFoot: 0 };
+
+    const pose = new Pose({
+        locateFile: (file) => `https://fastly.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    });
+    pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5 });
+
+    pose.onResults((results) => {
+        inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+        inputCtx.drawImage(results.image, 0, 0, inputCanvas.width, inputCanvas.height);
+        if (!results.poseLandmarks || gameState === "FINISHED" || gameState === "QUIT") return;
+
+        const landmarks = results.poseLandmarks;
+        const drawBone = (p1, p2) => {
+            if (!landmarks[p1] || !landmarks[p2]) return;
+            inputCtx.beginPath();
+            inputCtx.moveTo(landmarks[p1].x * inputCanvas.width, landmarks[p1].y * inputCanvas.height);
+            inputCtx.lineTo(landmarks[p2].x * inputCanvas.width, landmarks[p2].y * inputCanvas.height);
+            inputCtx.stroke();
+        };
+
+        inputCtx.strokeStyle = "rgba(46, 204, 113, 0.6)";
+        inputCtx.lineWidth = 3;
+        drawBone(11, 12); drawBone(11, 23); drawBone(12, 24); drawBone(23, 24);
+        drawBone(11, 13); drawBone(13, 15); drawBone(12, 14); drawBone(14, 16);
+        drawBone(23, 25); drawBone(25, 27); drawBone(24, 26); drawBone(26, 28);
+
+        const drawPoint = (index, color, radius) => {
+            if (!landmarks[index]) return;
+            inputCtx.beginPath();
+            inputCtx.arc(landmarks[index].x * inputCanvas.width, landmarks[index].y * inputCanvas.height, radius, 0, 2 * Math.PI);
+            inputCtx.fillStyle = color;
+            inputCtx.fill();
+        };
+
+        [11, 12, 13, 14, 23, 24, 25, 26].forEach(i => drawPoint(i, "#F1C40F", 4));
+        [15, 16].forEach(i => drawPoint(i, "#9B59B6", 6));
+        [27, 28].forEach(i => drawPoint(i, "#E67E22", 6));
+
+        const real = {
+            leftHand:     { x: (1 - landmarks[15].x) * gameCanvas.width, y: landmarks[15].y * gameCanvas.height },
+            rightHand:    { x: (1 - landmarks[16].x) * gameCanvas.width, y: landmarks[16].y * gameCanvas.height },
+            leftShoulder: { x: (1 - landmarks[11].x) * gameCanvas.width, y: landmarks[11].y * gameCanvas.height },
+            rightShoulder:{ x: (1 - landmarks[12].x) * gameCanvas.width, y: landmarks[12].y * gameCanvas.height },
+            leftHip:      { x: (1 - landmarks[23].x) * gameCanvas.width, y: landmarks[23].y * gameCanvas.height },
+            rightHip:     { x: (1 - landmarks[24].x) * gameCanvas.width, y: landmarks[24].y * gameCanvas.height },
+            leftFoot:     { x: (1 - landmarks[27].x) * gameCanvas.width, y: landmarks[27].y * gameCanvas.height },
+            rightFoot:    { x: (1 - landmarks[28].x) * gameCanvas.width, y: landmarks[28].y * gameCanvas.height }
+        };
+
+        if (worldScrollY > targetScrollY) {
+            worldScrollY -= 8;
+            if (worldScrollY < targetScrollY) worldScrollY = targetScrollY;
+        }
+
+        if (gameState === "NOT_READY") {
+            let count = (startStatus.leftHand?1:0) + (startStatus.rightHand?1:0) + (startStatus.leftFoot?1:0) + (startStatus.rightFoot?1:0);
+            statusDiv.innerHTML = `🎯 <b>起步打卡</b>: 请将真实手脚去触碰绿圈初始化物理模型 (${count}/4)`;
+
+            puppet.leftHand.x = real.leftHand.x;   puppet.leftHand.y = real.leftHand.y;
+            puppet.rightHand.x = real.rightHand.x; puppet.rightHand.y = real.rightHand.y;
+            puppet.leftFoot.x = real.leftFoot.x;   puppet.leftFoot.y = real.leftFoot.y;
+            puppet.rightFoot.x = real.rightFoot.x; puppet.rightFoot.y = real.rightFoot.y;
+           
+            puppet.bodyCenter.x = (puppet.leftHand.x + puppet.rightHand.x + puppet.leftFoot.x + puppet.rightFoot.x) / 4;
+            puppet.bodyCenter.y = (puppet.leftHand.y + puppet.rightHand.y + puppet.leftFoot.y + puppet.rightFoot.y) / 4;
+
+            if (!startStatus.leftHand && Math.hypot(real.leftHand.x - holds[2].x, real.leftHand.y - holds[2].y) < 35) startStatus.leftHand = true;
+            if (!startStatus.rightHand && Math.hypot(real.rightHand.x - holds[3].x, real.rightHand.y - holds[3].y) < 35) startStatus.rightHand = true;
+            if (!startStatus.leftFoot && Math.hypot(real.leftFoot.x - holds[0].x, real.leftFoot.y - holds[0].y) < 40) startStatus.leftFoot = true;
+            if (!startStatus.rightFoot && Math.hypot(real.rightFoot.x - holds[1].x, real.rightFoot.y - holds[1].y) < 40) startStatus.rightFoot = true;
+
+            if (startStatus.leftHand && startStatus.rightHand && startStatus.leftFoot && startStatus.rightFoot) {
+                gameState = "GAMEPLAY";
+                snapPuppetToHolds();
+            }
+
+        } else if (gameState === "GAMEPLAY") {
+            statusDiv.style.color = "#27AE60";
+            statusDiv.innerHTML = "🧗 <b>Klifur 物理引擎已激活</b>: 你的身体拥有重力和惯性，用力往上拉！";
+
+            const motionStretch = {
+                leftHand:  Math.hypot(real.leftHand.x - real.leftShoulder.x, real.leftHand.y - real.leftShoulder.y) * 1.4,
+                rightHand: Math.hypot(real.rightHand.x - real.rightShoulder.x, real.rightHand.y - real.rightShoulder.y) * 1.4,
+                leftFoot:  Math.hypot(real.leftFoot.x - real.leftHip.x, real.leftFoot.y - real.leftHip.y) * 1.6,
+                rightFoot: Math.hypot(real.rightFoot.x - real.rightHip.x, real.rightFoot.y - real.rightHip.y) * 1.6
+            };
+
+            let activeLimb = null;
+            let maxIntent = 0;
+            const limbs = ["leftHand", "rightHand", "leftFoot", "rightFoot"];
+           
+            limbs.forEach(limb => {
+                const threshold = limb.includes("Hand") ? 50 : 35;
+                if (motionStretch[limb] > threshold && motionStretch[limb] > maxIntent) {
+                    maxIntent = motionStretch[limb];
+                    activeLimb = limb;
+                }
+            });
+
+            let totalFx = 0;
+            let totalFy = puppet.gravity;
+
+            limbs.forEach(limb => {
+                if (puppet[limb].attachedId !== null) {
+                    let dx = puppet[limb].x - puppet.bodyCenter.x;
+                    let dy = puppet[limb].y - puppet.bodyCenter.y;
+                    let dist = Math.hypot(dx, dy);
+                    let restL = limb.includes("Hand") ? puppet.restLengthHand : puppet.restLengthFoot;
+                   
+                    if (dist > restL) {
+                        let force = puppet.springK * (dist - restL);
+                        totalFx += (dx / dist) * force;
+                        totalFy += (dy / dist) * force;
+                    }
+                }
+            });
+
+            puppet.bodyCenter.vx = (puppet.bodyCenter.vx + totalFx) * puppet.damping;
+            puppet.bodyCenter.vy = (puppet.bodyCenter.vy + totalFy) * puppet.damping;
+            puppet.bodyCenter.x += puppet.bodyCenter.vx;
+            puppet.bodyCenter.y += puppet.bodyCenter.vy;
+
+            if (puppet.bodyCenter.y > worldScrollY + gameCanvas.height + 50) {
+                gameState = "FINISHED";
+                gameOverlay.style.display = "flex";
+                gameOverlay.style.background = "rgba(192, 57, 43, 0.95)";
+                overlayTitle.innerText = "💥 坠落！(WASTED)";
+                overlayDesc.innerText = `很遗憾，未抓稳跌落。最终高度：${currentHeightMeters.toFixed(2)} 米。`;
+                return;
+            }
+
+            limbs.forEach(limb => {
+                if (limb === activeLimb) {
+                    puppet[limb].attachedId = null;
+                   
+                    let targetX = puppet.bodyCenter.x;
+                    let targetY = puppet.bodyCenter.y;
+                   
+                    if (limb === "leftHand")  { targetX -= 40; targetY -= 45 + (motionStretch.leftHand * 0.85); }
+                    if (limb === "rightHand") { targetX += 40; targetY -= 45 + (motionStretch.rightHand * 0.85); }
+                    if (limb === "leftFoot")  { targetX -= 25; targetY += 45 - (motionStretch.leftFoot * 0.95); }
+                    if (limb === "rightFoot") { targetX += 25; targetY += 45 - (motionStretch.rightFoot * 0.95); }
+
+                    let dx = targetX - puppet.bodyCenter.x;
+                    let dy = targetY - puppet.bodyCenter.y;
+                    let distance = Math.hypot(dx, dy);
+                   
+                    let maxAllowed = limb.includes("Hand") ? puppet.maxReachHand : puppet.maxReachFoot;
+                    if (maxIntent > 80) {
+                        maxAllowed += Math.min((maxIntent - 80) * 0.35, 20);
+                    }
+                   
+                    if (distance > maxAllowed) {
+                        let angle = Math.atan2(dy, dx);
+                        puppet[limb].x = puppet.bodyCenter.x + Math.cos(angle) * maxAllowed;
+                        puppet[limb].y = puppet.bodyCenter.y + Math.sin(angle) * maxAllowed;
+                    } else {
+                        puppet[limb].x = targetX;
+                        puppet[limb].y = targetY;
+                    }
+
+                    let bestMagnetHold = null;
+                    let minHoldDist = 9999;
+
+                    holds.forEach(hold => {
+                        let distToHold = Math.hypot(puppet[limb].x - hold.x, puppet[limb].y - hold.y);
+                        if (distToHold < puppet.magnetRadius && distToHold < minHoldDist) {
+                            minHoldDist = distToHold;
+                            bestMagnetHold = hold;
+                        }
+                    });
+
+                    if (bestMagnetHold) {
+                        puppet[limb].x = bestMagnetHold.x;
+                        puppet[limb].y = bestMagnetHold.y;
+                        hoverTimers[limb]++;
+                       
+                        if (hoverTimers[limb] >= 5) {
+                            puppet[limb].attachedId = bestMagnetHold.id;
+                            hoverTimers[limb] = 0;
+
+                            let highestHandY = Math.min(puppet.leftHand.y, puppet.rightHand.y);
+                            let climbedPixels = START_Y_REF - highestHandY;
+                            if (climbedPixels > 0) {
+                                currentHeightMeters = parseFloat((climbedPixels / 40).toFixed(2));
+                                heightVal.innerText = currentHeightMeters.toFixed(2);
+                            }
+
+                            if (bestMagnetHold.isTopGoal) {
+                                gameState = "FINISHED";
+                                gameOverlay.style.display = "flex";
+                                gameOverlay.style.background = "rgba(46, 204, 113, 0.85)";
+                                overlayTitle.innerText = "🎉 TOP! (物理登顶成功)";
+                                overlayDesc.innerText = `卓越的爆发拉力！你成功在物理世界征服了 15.00 米！`;
+                            }
+
+                            if (highestHandY < worldScrollY + 240) {
+                                targetScrollY = highestHandY - 240;
+                            }
+                        }
+                    } else {
+                        hoverTimers[limb] = 0;
+                    }
+
+                } else {
+                    if (puppet[limb].attachedId !== null) {
+                        const h = holds.find(x => x.id === puppet[limb].attachedId);
+                        if (h) {
+                            puppet[limb].x = h.x;
+                            puppet[limb].y = h.y;
+                        }
+                    }
+                }
+            });
+        }
+        renderGameWorld();
+    });
+
+    const camera = new Camera(video, { onFrame: async () => { await pose.send({ image: video }); }, width: 240, height: 300 });
+    camera.start();
+
+    function snapPuppetToHolds() {
+        ["leftFoot", "rightFoot", "leftHand", "rightHand"].forEach(limb => {
+            const h = holds.find(x => x.id === puppet[limb].attachedId);
+            if (h) { puppet[limb].x = h.x; puppet[limb].y = h.y; }
+        });
+    }
+
+    function drawCruxHold(ctx, x, y, r, color, shape, isTop) {
+        const buildPath = () => {
+            ctx.beginPath();
+            if (isTop || shape === "circle") {
+                ctx.arc(x, y, r, 0, 2 * Math.PI);
+            } else if (shape === "triangle") {
+                ctx.moveTo(x, y - r); ctx.lineTo(x + r, y + r/2); ctx.lineTo(x - r, y + r/2);
+            } else {
+                ctx.moveTo(x - r, y - r/2); ctx.lineTo(x + r/3, y - r); ctx.lineTo(x + r, y - r/3); ctx.lineTo(x + r/2, y + r); ctx.lineTo(x - r, y + r/2);
+            }
+        };
+
+        ctx.save();
+        ctx.translate(2, 3);
+        buildPath();
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+        ctx.fill();
+        ctx.restore();
+
+        buildPath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        if (isTop) {
+            ctx.fillStyle = "#FFF";
+            ctx.font = "bold 11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("TOP", x, y + 4);
+        } else {
+            ctx.fillStyle = "rgba(255,255,25,0.25)";
+            ctx.beginPath();
+            ctx.arc(x - r/3, y - r/4, r/4, 0, 2*Math.PI);
+            ctx.fill();
+        }
+    }
+
+    function renderGameWorld() {
+        gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+        gameCtx.save();
+        gameCtx.translate(0, -worldScrollY);
+
+        holds.forEach((hold) => {
+            if (hold.y - worldScrollY > 700 || hold.y - worldScrollY < -200) return;
+            drawCruxHold(gameCtx, hold.x, hold.y, hold.r, hold.color, hold.shape, hold.isTopGoal);
+           
+            if (gameState === "NOT_READY" && hold.type && startStatus[hold.type]) {
+                gameCtx.strokeStyle = "#2ECC71"; gameCtx.lineWidth = 3;
+                gameCtx.beginPath(); gameCtx.arc(hold.x, hold.y, hold.r + 6, 0, 2*Math.PI); gameCtx.stroke();
+            }
+        });
+
+        const p = puppet;
+        gameCtx.strokeStyle = "#F5CBA7"; gameCtx.lineWidth = 9.5; gameCtx.lineCap = "round"; gameCtx.lineJoin = "round";
+       
+        gameCtx.beginPath(); gameCtx.moveTo(p.bodyCenter.x - 11, p.bodyCenter.y - 18); gameCtx.lineTo(p.leftHand.x, p.leftHand.y); gameCtx.stroke();
+        gameCtx.beginPath(); gameCtx.moveTo(p.bodyCenter.x + 11, p.bodyCenter.y - 18); gameCtx.lineTo(p.rightHand.x, p.rightHand.y); gameCtx.stroke();
+        gameCtx.beginPath(); gameCtx.moveTo(p.bodyCenter.x - 9, p.bodyCenter.y + 12); gameCtx.lineTo(p.leftFoot.x, p.leftFoot.y); gameCtx.stroke();
+        gameCtx.beginPath(); gameCtx.moveTo(p.bodyCenter.x + 9, p.bodyCenter.y + 12); gameCtx.lineTo(p.rightFoot.x, p.rightFoot.y); gameCtx.stroke();
+
+        drawCircle(gameCtx, p.leftFoot.x, p.leftFoot.y, 6, "#2C3E50", true);
+        drawCircle(gameCtx, p.rightFoot.x, p.rightFoot.y, 6, "#2C3E50", true);
+
+        gameCtx.fillStyle = "#2C3E50"; gameCtx.fillRect(p.bodyCenter.x - 13, p.bodyCenter.y, 26, 15);
+        gameCtx.fillStyle = "#FD79A8"; gameCtx.beginPath(); gameCtx.moveTo(p.bodyCenter.x - 13, p.bodyCenter.y - 22);
+        ctxRect(gameCtx, p.bodyCenter.x - 13, p.bodyCenter.y - 22, 26, 23, 4); gameCtx.fill();
+
+        drawCircle(gameCtx, p.bodyCenter.x, p.bodyCenter.y - 34, 10, "#F5CBA7", true);
+        gameCtx.restore();
+    }
+
+    function resetGame() {
+        initHoldsRoute();
+        gameState = "NOT_READY";
+        gameOverlay.style.display = "none";
+        puppet = {
+            bodyCenter: { x: 240, y: 440, vx: 0, vy: 0, mass: 1.0 },
+            leftHand:   { x: 150, y: 380, attachedId: 2 },
+            rightHand:  { x: 330, y: 380, attachedId: 3 },
+            leftFoot:   { x: 160, y: 500, attachedId: 0 },
+            rightFoot:  { x: 320, y: 500, attachedId: 1 },
+            springK: 0.12, damping: 0.84, gravity: LEVELS[currentLevel].gravity,
+            restLengthHand: 85, restLengthFoot: 70,
+            maxReachHand: 115, maxReachFoot: 95, magnetRadius: LEVELS[currentLevel].magnetRadius
+        };
+    }
+
+    function drawCircle(ctx, x, y, r, color, isFilled) {
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+        if (isFilled) { ctx.fillStyle = color; ctx.fill(); } else { ctx.strokeStyle = color; ctx.stroke(); }
+    }
+
+    function ctxRect(ctx, x, y, width, height, radius) {
+        ctx.moveTo(x + radius, y); ctx.lineTo(x + width - radius, y); ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius); ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height); ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius); ctx.quadraticCurveTo(x, y, x + radius, y);
+    }
+
+    initHoldsRoute();
+</script>
+</body>
+</html>
